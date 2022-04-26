@@ -35,19 +35,19 @@ BPPARAM = MulticoreParam(threads, progressbar=T)
 dxd <- readRDS(dds_file)
 
 # filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
-# filters out 205,804 exons
 ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 25
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
+
 ##factors and design
-dxd$Location <- factor(paste(dxd$Location))
-design(dxd) <- ~sample+exon+Location:exon
+dxd$parasitism <- factor(paste(dxd$parasitism))
+design(dxd) <- ~sample+exon+parasitism:exon
 
 ##run dexseq - already run size factors
 dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM, quiet=F)
 dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
-dxd <- estimateExonFoldChanges(dxd, fitExpToVar="Location", BPPARAM=BPPARAM)
+dxd <- estimateExonFoldChanges(dxd, fitExpToVar="parasitism", BPPARAM=BPPARAM)
 saveRDS(dxd, snakemake@output[["dds_res"]])
 
 dxdr1_res = DEXSeqResults(dxd)

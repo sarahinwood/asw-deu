@@ -22,6 +22,7 @@ library(BiocParallel)
 
 dds_file <- snakemake@input[["dds_file"]]
 trinotate_file <- snakemake@input[["trinotate file"]]
+asw_location <- snakemake@params[["location"]]
 
 threads <- snakemake@params[["bp_threads"]]
 # for faster runtime
@@ -31,24 +32,24 @@ BPPARAM = MulticoreParam(threads, progressbar=T)
 # MAIN #
 ########
 
-##dxd object
+# dxd object
 dxd <- readRDS(dds_file)
 
-# filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
-# filters out 205,804 exons
-ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 25
+ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >=3
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
-##factors and design
-dxd$Location <- factor(paste(dxd$Location))
-design(dxd) <- ~sample+exon+Location:exon
+# subset for location (snakemake should run through both)
+dxd_location <- dxd[,dxd$Location==asw_location]
+# factor and design
+dxd_location$Treatment <- factor(dxd_location$Treatment)
+design(dxd_location) <- ~sample+exon+Treatment:exon
 
-##run dexseq - already run size factors
-dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM, quiet=F)
-dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
-dxd <- estimateExonFoldChanges(dxd, fitExpToVar="Location", BPPARAM=BPPARAM)
-saveRDS(dxd, snakemake@output[["dds_res"]])
+# run dexseq - already run size factors
+dxd_location <- estimateDispersions(dxd_location, BPPARAM=BPPARAM, quiet=F)
+dxd_location <- testForDEU(dxd_location, BPPARAM=BPPARAM)
+dxd_location <- estimateExonFoldChanges(dxd_location, fitExpToVar="Treatment", BPPARAM=BPPARAM)
+saveRDS(dxd_location, snakemake@output[["dds_res"]])
 
 dxdr1_res = DEXSeqResults(dxd)
 ##save full list for FGSEA

@@ -14,17 +14,18 @@ sink(log, append = TRUE, type = "output")
 
 library(data.table)
 library(DEXSeq)
-library(BatchJobs)
+library(BiocParallel)
 
 ###########
 # GLOBALS #
 ###########
 
 dds_file <- snakemake@input[["dds_file"]]
+threads <- snakemake@params[["bp_threads"]]
 trinotate_file <- snakemake@input[["trinotate_file"]]
 
 # for faster runtime
-BPPARAM=BatchJobsParam(1)
+BPPARAM = MulticoreParam(threads, progressbar=T)
 
 ########
 # MAIN #
@@ -35,55 +36,47 @@ dxd <- readRDS(dds_file)
 ##trinotate annotations
 trinotate <- fread(trinotate_file, na.strings = "")
 
+# filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
+ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >=3
+table(ToFilter)
+dxd <- dxd[ToFilter,]
+
 ##factors and design
 dxd$Treatment <- factor(paste(dxd$Treatment))
-##control location PC1, test exposure - because we control for sample, do we even need to control for location/PC1? - don't think so
-##https://bioconductor.org/packages/devel/bioc/vignettes/DEXSeq/inst/doc/DEXSeq.html#4_Standard_analysis_workflow
-##all observations from same sample are also from same condition e.g. location - in previous analyses haven't included sample in design
 design(dxd) <- ~sample+exon+Treatment:exon
 
 ##run dexseq - already run size factors
-dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM), quiet=F) ##long step
+dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM)
 plotDispEsts(dxd)
 dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
 dxd <- estimateExonFoldChanges(dxd, fitExpToVar="Treatment", BPPARAM=BPPARAM)
-
-##pipeline command - but dxd file had no results
-#dxd <- DEXSeq(dxd, fullModel=design(dxd), BPPARAM=MulticoreParam(workers=1), fitExpToVar="Treatment", quiet=F)
-
 saveRDS(dxd, snakemake@output[["dds_res"]])
 
 dxdr1_res = DEXSeqResults(dxd)
 ##save full list for FGSEA
 dxdr1.sorted = as.data.table(dxdr1_res[order(dxdr1_res$padj),])
-fwrite(dxdr1.sorted, "output/dexseq/dtu_exposed_analysis/all_res.csv")
+fwrite(dxdr1.sorted, snakemake@output[["all_res"]])
 
-##sig degs
-sig_exposed_dtu <- subset(dxdr1.sorted, padj<0.05)
-fwrite(sig_exposed_dtu, "output/dexseq/dtu_exposed_analysis/sig_degs.csv")
+##sig dtus
+sig_location_dtu <- subset(dxdr1.sorted, padj<0.05)
 
 #how many genes have DE exons?
-length(unique(sig_exposed_dtu$groupID))
+length(unique(sig_location_dtu$groupID))
 
-##merge with trinotate annotations
-sig_dtu_annots <- merge(sig_exposed_dtu, trinotate, by.x="groupID", by.y="#gene_id")
-fwrite(sig_dtu_annots, "output/dexseq/dtu_exposed_analysis/sig_degs_annots.csv")
-
-##what number have blastx?
-sum(!is.na(sig_dtu_annots$sprot_Top_BLASTX_hit))
-##what number have blastp?
-sum(!is.na(sig_dtu_annots$sprot_Top_BLASTP_hit))
-##what number have pfam GO?
-sum(!is.na(sig_dtu_annots$gene_ontology_Pfam))
+##merge sig dtus with trinotate annotations
+trinotate <- fread(trinotate_file)
+sig_dtu_annots <- merge(sig_location_dtu, trinotate, by.x="groupID", by.y="#gene_id")
+fwrite(sig_dtu_annots, snakemake@output[["sig_dtu_annots"]])
 
 ##plot dexseq plots for top 50
-#pdf("output/dexseq/dtu_exposed_analysis/dtu_exposed_dexseq.pdf")
-#top_genes = unique(dxdr1.sorted$groupID[dxdr1.sorted$padj < 0.1 & ! is.na(dxdr1.sorted$padj)])
-#top_genes = top_genes[1:min(50, length(top_genes))]
-#message("Top 50 genes: (", paste(top_genes, collapse=','), ")")
-#for (gene in top_genes) { 
-#  plotDEXSeq( dxdr1 , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
-#}
+pdf(snakemake@output[["dtu_plots"]])
+top_genes = unique(dxdr1.sorted$groupID[dxdr1.sorted$padj < 0.1 & ! is.na(dxdr1.sorted$padj)])
+top_genes = top_genes[1:min(50, length(top_genes))]
+message("Top 50 genes: (", paste(top_genes, collapse=','), ")")
+for (gene in top_genes) { 
+  plotDEXSeq( dxdr1 , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
+}
+dev.off()
 
 # write log
 sessionInfo()

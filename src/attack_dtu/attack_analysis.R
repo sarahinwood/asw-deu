@@ -40,14 +40,18 @@ ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 25
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
-##factors and design
-dxd$Location <- factor(paste(dxd$Location))
-design(dxd) <- ~sample+exon+Location:exon
+# subset to only microcosm samples
+dxd <- dxd[,dxd$Experiment=="Microcosm"]
+#split condition factor to make attack status
+dxd$attack_status <- factor(paste(dxd$condition))
+##factors and design 
+dxd$attack_status <- factor(paste(dxd$attack_status))
+design(dxd) <- ~sample+exon+attack_status:exon
 
 ##run dexseq - already run size factors
 dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM, quiet=F)
 dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
-dxd <- estimateExonFoldChanges(dxd, fitExpToVar="Location", BPPARAM=BPPARAM)
+dxd <- estimateExonFoldChanges(dxd, fitExpToVar="attack_status", BPPARAM=BPPARAM)
 saveRDS(dxd, snakemake@output[["dds_res"]])
 
 dxdr1_res = DEXSeqResults(dxd)
