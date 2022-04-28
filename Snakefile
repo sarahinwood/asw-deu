@@ -28,12 +28,12 @@ bioconductor_container = 'library://sinwood/bioconductor/bioconductor_3.12:0.0.1
 
 rule target:
     input:
-       	# location or exposed pairwise
-        expand("output/dexseq/dtu_{analysis}_analysis/sig_degs_annots.csv", analysis=("location", "exposed")),
+       	# location/exposed pairwise
+        expand("output/dexseq/dtu_{analysis}_analysis_le/sig_degs_annots.csv", analysis=("location", "exposed")),
         # location-sp exposure analysis
         expand("output/dexseq/dtu_exposed_{location}_analysis/sig_degs_annots.csv", location=("Dunedin", "Ruakura")),
-        "output/dexseq/dtu_attack_analysis/sig_degs_annots.csv",
-        "output/dexseq/dtu_parasitism_analysis/sig_degs_annots.csv"
+        # attack/para pairwise
+        expand("output/dexseq/dtu_{status}_analysis_ap/sig_degs_annots.csv", status=("parasitism", "attack"))
 
 # dexseq vignette
     # https://bioconductor.org/packages/devel/bioc/vignettes/DEXSeq/inst/doc/DEXSeq.html#7_Visualization
@@ -42,16 +42,17 @@ rule target:
 ## attack/para analyses ##
 ##########################
 
-rule dtu_attack_analysis: #don't think attack status is in the sample_table.csv
+rule dtu_parasitism_attack_analysis:
     input:
+        trinotate_file = "data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv",
         dds_file = "output/dexseq/dtu_location_analysis/asw.dds"
     output:
-        dds_res = "output/dexseq/dtu_attack_analysis/dtu_attack_res.dds",
-        all_res = "output/dexseq/dtu_attack_analysis/all_res.csv",
-        sig_dtu_annots = "output/dexseq/dtu_attack_analysis/sig_degs_annots.csv",
-        dtu_plots = "output/dexseq/dtu_attack_analysis/dtu_attack_dexseq.pdf"
+        dds_res = "output/dexseq/dtu_{status}_analysis_ap/dtu_{status}_res.dds",
+        all_res = "output/dexseq/dtu_{status}_analysis_ap/all_res.csv",
+        sig_dtu_annots = "output/dexseq/dtu_{status}_analysis_ap/sig_degs_annots.csv",
+        dtu_plots = "output/dexseq/dtu_{status}_analysis_ap/dtu_{status}_dexseq.pdf"
     log:
-        "output/logs/dexseq/dtu_attack_analysis.log"
+        "output/logs/dexseq/dtu_{status}_analysis.log"
     params:
         bp_threads = 8
     threads:
@@ -59,26 +60,7 @@ rule dtu_attack_analysis: #don't think attack status is in the sample_table.csv
     singularity:
         bioconductor_container
     script:
-        'src/exposed_location_dtu/exposed_location_analysis.R' # not real script
-
-rule dtu_parasitism_analysis: # same issue as location where it wants all samples
-    input:
-        dds_file = "output/dexseq/dtu_location_analysis/asw.dds"
-    output:
-        dds_res = "output/dexseq/dtu_parasitism_analysis/dtu_parasitism_res.dds",
-        all_res = "output/dexseq/dtu_parasitism_analysis/all_res.csv",
-        sig_dtu_annots = "output/dexseq/dtu_parasitism_analysis/sig_degs_annots.csv",
-        dtu_plots = "output/dexseq/dtu_parasitism_analysis/dtu_parasitism_dexseq.pdf"
-    log:
-        "output/logs/dexseq/dtu_parasitism_analysis.log"
-    params:
-        bp_threads = 8
-    threads:
-        8
-    singularity:
-        bioconductor_container
-    script:
-        'src/parasitism_dtu/parasitism_analysis.R'
+        'src/{wildcards.status}_dtu/{wildcards.status}_analysis.R'
 
 #################################
 ## exposed & location analyses ##
@@ -86,6 +68,7 @@ rule dtu_parasitism_analysis: # same issue as location where it wants all sample
 
 rule dtu_exposed_location_analysis:
     input:
+        trinotate_file = "data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv",
         dds_file = "output/dexseq/dtu_exposed_analysis/asw.dds"
     output:
         dds_res = "output/dexseq/dtu_exposed_{location}_analysis/exposed_{location}_res.dds",
@@ -109,10 +92,10 @@ rule dtu_exposed_or_location_analysis:
         trinotate_file = "data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv",
         dds_file = "output/dexseq/dtu_{analysis}_analysis/asw.dds"
     output:
-        dds_res = "output/dexseq/dtu_{analysis}_analysis/asw_{analysis}_res.dds",
-        all_res = "output/dexseq/dtu_{analysis}_analysis/all_res.csv",
-        sig_dtu_annots = "output/dexseq/dtu_{analysis}_analysis/sig_degs_annots.csv",
-        dtu_plots = "output/dexseq/dtu_{analysis}_analysis/dtu_{analysis}_dexseq.pdf"
+        dds_res = "output/dexseq/dtu_{analysis}_analysis_le/asw_{analysis}_res.dds",
+        all_res = "output/dexseq/dtu_{analysis}_analysis_le/all_res.csv",
+        sig_dtu_annots = "output/dexseq/dtu_{analysis}_analysis_le/sig_degs_annots.csv",
+        dtu_plots = "output/dexseq/dtu_{analysis}_analysis_le/dtu_{analysis}_dexseq.pdf"
     params:
         bp_threads = 8
     threads:

@@ -31,10 +31,10 @@ BPPARAM = MulticoreParam(threads, progressbar=T)
 # MAIN #
 ########
 
+#trinotate annots
+trinotate <- fread(trinotate_file, na.strings="")
 ##dxd object
 dxd <- readRDS(dds_file)
-##trinotate annotations
-trinotate <- fread(trinotate_file, na.strings = "")
 
 # filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
 ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >=3
@@ -64,7 +64,6 @@ sig_location_dtu <- subset(dxdr1.sorted, padj<0.05)
 length(unique(sig_location_dtu$groupID))
 
 ##merge sig dtus with trinotate annotations
-trinotate <- fread(trinotate_file)
 sig_dtu_annots <- merge(sig_location_dtu, trinotate, by.x="groupID", by.y="#gene_id")
 fwrite(sig_dtu_annots, snakemake@output[["sig_dtu_annots"]])
 

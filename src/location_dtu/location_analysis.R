@@ -21,7 +21,7 @@ library(BiocParallel)
 ###########
 
 dds_file <- snakemake@input[["dds_file"]]
-trinotate_file <- snakemake@input[["trinotate file"]]
+trinotate_file <- snakemake@input[["trinotate_file"]]
 
 threads <- snakemake@params[["bp_threads"]]
 # for faster runtime
@@ -31,6 +31,8 @@ BPPARAM = MulticoreParam(threads, progressbar=T)
 # MAIN #
 ########
 
+#trinotate annots
+trinotate <- fread(trinotate_file, na.strings="")
 ##dxd object
 dxd <- readRDS(dds_file)
 
@@ -62,7 +64,6 @@ sig_location_dtu <- subset(dxdr1.sorted, padj<0.05)
 length(unique(sig_location_dtu$groupID))
 
 ##merge sig dtus with trinotate annotations
-trinotate <- fread(trinotate_file)
 sig_dtu_annots <- merge(sig_location_dtu, trinotate, by.x="groupID", by.y="#gene_id")
 fwrite(sig_dtu_annots, snakemake@output[["sig_dtu_annots"]])
 
