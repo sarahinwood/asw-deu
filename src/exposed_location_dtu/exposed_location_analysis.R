@@ -74,7 +74,7 @@ top_genes = unique(dxdr1.sorted$groupID[dxdr1.sorted$padj < 0.1 & ! is.na(dxdr1.
 top_genes = top_genes[1:min(50, length(top_genes))]
 message("Top 50 genes: (", paste(top_genes, collapse=','), ")")
 for (gene in top_genes) { 
-  plotDEXSeq( dxdr1 , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
+  plotDEXSeq( dxdr1_res , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
 }
 dev.off()
 
