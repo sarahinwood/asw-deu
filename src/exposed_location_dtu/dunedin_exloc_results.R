@@ -1,22 +1,43 @@
+#!/usr/bin/env Rscript
+
+#######
+# LOG #
+#######
+
+log <- file(snakemake@log[[1]], open = "wt")
+sink(log, type = "message")
+sink(log, append = TRUE, type = "output")
+
+#############
+# LIBRARIES #
+#############
+
 library(data.table)
 library(DEXSeq)
 library(pheatmap)
 library(viridis)
 library(tibble)
 
-trinotate <- fread("data/asw-mh-combined-transcriptome/output/asw_edited_transcript_ids/trinotate_longest_isoform.csv",
-                   na.strings = "")
+###########
+# GLOBALS #
+###########
+
+trinotate_file <- snakemake@input[["trinotate_file"]]
+dds_file <- snakemake@input[["dds_file"]]
+
 ##########
 ## DEGs ##
 ##########
 
+trinotate <- fread(trinotate_file, na.strings = "")
+
 # dexseq results
-dxd <- readRDS("output/dexseq/dtu_exposed_Dunedin/exposed_Dunedin_res.dds")
+dxd <- readRDS(dds_file)
 dxr <- DEXSeqResults(dxd)
 
 # save full list for FGSEA
 dxr.sorted = as.data.table(dxr[order(dxr$padj),])
-fwrite(dxr.sorted, "output/dexseq/dtu_exposed_Dunedin/all_res.csv")
+fwrite(dxr.sorted, snakemake@output[["all_res"]])
 
 # sig degs
 sig_exposed_dtu <- subset(dxr.sorted, padj<0.05)
@@ -26,7 +47,7 @@ sig_exposed_dtu$gene_exon <- paste(sig_exposed_dtu$groupID, sig_exposed_dtu$feat
 
 # merge with trinotate annotations
 sig_dtu_annots <- merge(sig_exposed_dtu, trinotate, by.x="groupID", by.y="#gene_id")
-fwrite(sig_dtu_annots, "output/dexseq/dtu_exposed_Dunedin/sig_degs_annots.csv")
+fwrite(sig_dtu_annots, snakemake@output[["sig_dtu_annots"]])
 
 sig_annots_bx <- subset(sig_dtu_annots, !is.na(sprot_Top_BLASTX_hit))
 sig_annots_bp <- subset(sig_dtu_annots, !is.na(sprot_Top_BLASTP_hit))
@@ -67,11 +88,19 @@ treatment_colours <- list(Treatment=c(exposed="#3B0F70FF", ex_control="#FCFDBFFF
 
 ##plot
 # not clustered by sample
+pdf(snakemake@output[["dtu_heatmap_unclustered"]])
 pheatmap(asw_vst_degs, cluster_rows=T, cluster_cols=F, show_rownames=F,
          annotation_col=sample_to_treatment, annotation_colors=treatment_colours, annotation_names_col=F,
          show_colnames = F, border_color=NA, color=viridis(50))
+dev.off()
 
 # clustered by sample
+pdf(snakemake@output[["dtu_heatmap_clustered"]])
 pheatmap(asw_vst_degs, cluster_rows=T, cluster_cols=T, show_rownames=T,
          annotation_col=sample_to_treatment, annotation_colors=treatment_colours, annotation_names_col=F,
          show_colnames = F, border_color=NA, color=viridis(50))
+dev.off()
+
+# write log
+sessionInfo()
+

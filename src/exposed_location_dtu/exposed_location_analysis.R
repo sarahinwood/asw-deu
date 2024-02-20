@@ -40,23 +40,30 @@ dxd <- readRDS(dds_file)
 ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >=3
 table(ToFilter)
 dxd <- dxd[ToFilter,]
+paste("filtered exons")
 
 # subset for location (snakemake should run through both)
 dxd_location <- dxd[,dxd$Location==asw_location]
 # factor and design
-dxd_location$Treatment <- factor(dxd_location$Treatment)
-design(dxd_location) <- ~sample+exon+Treatment:exon
+dxd_location$condition <- factor(dxd_location$condition)
+dxd_location$PC1_sign <- factor(paste(dxd_location$PC1_sign))
+design(dxd_location) <- ~sample+exon+PC1_sign:exon+condition:exon
 
 # run dexseq - already run size factors
 dxd_location <- estimateDispersions(dxd_location, BPPARAM=BPPARAM, quiet=F)
-dxd_location <- testForDEU(dxd_location, BPPARAM=BPPARAM)
-dxd_location <- estimateExonFoldChanges(dxd_location, fitExpToVar="Treatment", BPPARAM=BPPARAM)
+paste("est disp done")
+dxd_location <- testForDEU(dxd_location, BPPARAM=BPPARAM, reducedModel =~sample+exon+PC1_sign:exon)
+paste("test DEU done")
+dxd_location <- estimateExonFoldChanges(dxd_location, fitExpToVar="condition", BPPARAM=BPPARAM)
+paste("est FCs done")
 saveRDS(dxd_location, snakemake@output[["dds_res"]])
+paste("dexseq analysis done")
 
-dxdr1_res = DEXSeqResults(dxd)
+dxdr1_res = DEXSeqResults(dxd_location)
 ##save full list for FGSEA
 dxdr1.sorted = as.data.table(dxdr1_res[order(dxdr1_res$padj),])
 fwrite(dxdr1.sorted, snakemake@output[["all_res"]])
+paste("dexseq results written")
 
 ##sig dtus
 sig_location_dtu <- subset(dxdr1.sorted, padj<0.05)
@@ -67,6 +74,7 @@ length(unique(sig_location_dtu$groupID))
 ##merge sig dtus with trinotate annotations
 sig_dtu_annots <- merge(sig_location_dtu, trinotate, by.x="groupID", by.y="#gene_id")
 fwrite(sig_dtu_annots, snakemake@output[["sig_dtu_annots"]])
+paste("sig results written")
 
 ##plot dexseq plots for top 50
 pdf(snakemake@output[["dtu_plots"]])
@@ -77,6 +85,7 @@ for (gene in top_genes) {
   plotDEXSeq( dxdr1_res , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
 }
 dev.off()
+paste("plots made")
 
 # write log
 sessionInfo()

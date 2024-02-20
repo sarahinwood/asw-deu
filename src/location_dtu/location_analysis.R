@@ -44,6 +44,7 @@ dxd <- dxd[ToFilter,]
 
 ##factors and design
 dxd$Location <- factor(paste(dxd$Location))
+dxd$PC1_sign <- factor(paste(dxd$PC1_sign))
 design(dxd) <- ~sample+exon+Location:exon
 
 ##run dexseq - already run size factors

@@ -33,8 +33,10 @@ counts_info <- fread(counts_info_file, header=T)
 sample_counts_file <- counts_info[,c(1,3)]
 # full table
 full_info <- fread(full_info_file)
+
 # merge sample table with counts file-paths
-sample_table <- merge(full_info, sample_counts_file, by.x="location_name", by.y="V1")
+sample_table <- merge(full_info, sample_counts_file, by.y="V1", by.x=ifelse(counts_info_file=="output/dtu_exposed/dtu_exposed_.sample_table", "replicate_name",
+                                                                            ifelse(counts_info_file=="output/dtu_location/dtu_location_.sample_table", "location_name", "error")))
 # changing names for dexseq
 setnames(sample_table, old=c("Treatment", "sample_name"), new=c("condition", "sample"))
 # full counts path

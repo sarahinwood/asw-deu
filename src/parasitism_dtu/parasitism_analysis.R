@@ -37,18 +37,19 @@ trinotate <- fread(trinotate_file, na.strings="")
 dxd <- readRDS(dds_file)
 
 # filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
-ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 25
+ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 6
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
 
 ##factors and design
 dxd$parasitism <- factor(paste(dxd$parasitism))
-design(dxd) <- ~sample+exon+parasitism:exon
+dxd$PC1_sign <- factor(paste(dxd$PC1_sign))
+design(dxd) <- ~sample+exon+PC1_sign:exon+parasitism:exon
 
 ##run dexseq - already run size factors
 dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM, quiet=F)
-dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
+dxd <- testForDEU(dxd, BPPARAM=BPPARAM, reducedModel =~sample+exon+PC1_sign:exon)
 dxd <- estimateExonFoldChanges(dxd, fitExpToVar="parasitism", BPPARAM=BPPARAM)
 saveRDS(dxd, snakemake@output[["dds_res"]])
 
@@ -73,7 +74,7 @@ top_genes = unique(dxdr1.sorted$groupID[dxdr1.sorted$padj < 0.1 & ! is.na(dxdr1.
 top_genes = top_genes[1:min(50, length(top_genes))]
 message("Top 50 genes: (", paste(top_genes, collapse=','), ")")
 for (gene in top_genes) { 
-  plotDEXSeq( dxdr1_res , gene, legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
+  plotDEXSeq( dxdr1_res , gene, fitExpToVar="parasitism", legend=TRUE, cex.axis=1.2, cex=1.3, lwd=2 , expression=FALSE, norCounts=TRUE, splicing=TRUE, displayTranscripts=TRUE)
 }
 dev.off()
 

@@ -38,7 +38,7 @@ dxd <- readRDS(dds_file)
 
 # filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
 # filters out 205,804 exons
-ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 25
+ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >= 6
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
@@ -46,13 +46,14 @@ dxd <- dxd[ToFilter,]
 dxd <- dxd[,dxd$Experiment=="Microcosm"]
 #split condition factor to make attack status
 dxd$attack_status <- factor(paste(dxd$condition))
+dxd$PC1_sign <- factor(paste(dxd$PC1_sign))
 ##factors and design 
 dxd$attack_status <- factor(paste(dxd$attack_status))
-design(dxd) <- ~sample+exon+attack_status:exon
+design(dxd) <- ~sample+exon+PC1_sign:exon+attack_status:exon
 
 ##run dexseq - already run size factors
 dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM, quiet=F)
-dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
+dxd <- testForDEU(dxd, BPPARAM=BPPARAM, reducedModel =~sample+exon+PC1_sign:exon)
 dxd <- estimateExonFoldChanges(dxd, fitExpToVar="attack_status", BPPARAM=BPPARAM)
 saveRDS(dxd, snakemake@output[["dds_res"]])
 

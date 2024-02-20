@@ -36,20 +36,21 @@ trinotate <- fread(trinotate_file, na.strings="")
 ##dxd object
 dxd <- readRDS(dds_file)
 
-# filter lowly expressed exons to keep exons with counts above 10 in more than 25 samples
+# filter lowly expressed exons to keep exons with counts above 10 in more than 3 samples
 ToFilter <- apply(counts(dxd), 1, function(x) sum(x > 10)) >=3
 table(ToFilter)
 dxd <- dxd[ToFilter,]
 
 ##factors and design
-dxd$Treatment <- factor(paste(dxd$Treatment))
-design(dxd) <- ~sample+exon+Treatment:exon
+dxd$condition <- factor(paste(dxd$condition))
+dxd$PC1_sign <- factor(paste(dxd$PC1_sign))
+design(dxd) <- ~sample+exon+PC1_sign:exon+condition:exon
 
 ##run dexseq - already run size factors
 dxd <- estimateDispersions(dxd, BPPARAM=BPPARAM)
 plotDispEsts(dxd)
-dxd <- testForDEU(dxd, BPPARAM=BPPARAM)
-dxd <- estimateExonFoldChanges(dxd, fitExpToVar="Treatment", BPPARAM=BPPARAM)
+dxd <- testForDEU(dxd, BPPARAM=BPPARAM, reducedModel =~sample+exon+PC1_sign:exon)
+dxd <- estimateExonFoldChanges(dxd, fitExpToVar="condition", BPPARAM=BPPARAM)
 saveRDS(dxd, snakemake@output[["dds_res"]])
 
 dxdr1_res = DEXSeqResults(dxd)
